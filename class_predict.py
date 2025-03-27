@@ -51,8 +51,6 @@ class Predict:
             
             # Update tracker dengan deteksi baru
             tracks = self.tracker.update(detections[:, :-1])
-            print(tracks)
-            print(detections[:, -1])
             
             # Proses hasil tracking
             for track, class_index in zip(tracks, detections[:, -1]):

@@ -1,0 +1,28 @@
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies (for OpenCV)
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && apt-get clean
+
+# Copy requirement files and install dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
+
+# Copy application files
+COPY database.py .
+COPY class_predict.py .
+COPY main.py .
+COPY pupuk_counter.json .
+COPY scheduler.py .
+COPY sort.py .
+
+# Expose FastAPI port
+EXPOSE 5050
+
+# Command to run FastAPI app
+CMD ["uvicorn", "main:app", "--port", "5050"]

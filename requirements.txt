@@ -4,11 +4,11 @@ scikit-image
 filterpy
 lap
 scipy
-ultralytics
-roboflow
-ipykernel
 fastapi
 uvicorn
-mysql-connector-python
+mysql-connector-python==9.2.0
 schedule
+ultralytics
+# roboflow
+# ipykernel
 # pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126

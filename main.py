@@ -6,11 +6,14 @@ from pydantic import BaseModel
 from class_predict import Predict
 from database import Database
 
+# RUN API
+# uvicorn main:app --port 5050 --workers 2
 
-import cv2
-
-# cap = cv2.VideoCapture("pupuk.mp4")
-
+CCTV_CHANNELS = {
+    "Kamera1": "rtsp://pkl:futureisours2025@36.37.123.19:554/Streaming/Channels/101/",
+    "Kamera2": "rtsp://vendor:Bontangpkt2025@36.37.123.10:554/Streaming/Channels/101/",
+    "video": "pupuk.mp4"
+}
 
 class Data(BaseModel):
     granul: int
@@ -35,9 +38,15 @@ async def read():
 async def write(data:Data):
     return Database().write_data(tuple(data.model_dump().values()))
             
-@app.get("/video_feed")
-async def video_feed():
+@app.get("/video_feed/{channel}")
+async def video_feed(channel:str):
+    if channel not in CCTV_CHANNELS:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    
     try:
-        return StreamingResponse(Predict("pupuk.mp4").predict(), media_type="multipart/x-mixed-replace; boundary=frame")
+        return StreamingResponse(
+            Predict(CCTV_CHANNELS[channel]).predict(),
+            media_type="multipart/x-mixed-replace; boundary=frame"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
