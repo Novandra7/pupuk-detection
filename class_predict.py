@@ -51,6 +51,8 @@ class Predict:
             
             # Update tracker dengan deteksi baru
             tracks = self.tracker.update(detections[:, :-1])
+            print(tracks)
+            print(detections[:, -1])
             
             # Proses hasil tracking
             for track, class_index in zip(tracks, detections[:, -1]):
@@ -59,7 +61,6 @@ class Predict:
                 class_index = int(class_index)
                 class_names = list(self.label.keys())  # Ambil urutan nama kelas dari JSON
                 detected_class = class_names[class_index]
-                print(detected_class)
 
                 # Gambar bounding box dengan label
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
@@ -96,29 +97,29 @@ class Predict:
             cv2.putText(frame, inference_time, (90, 280), cv2.FONT_HERSHEY_SIMPLEX, 
                         0.7, (0, 165, 255), 2)
             
-            cv2.imshow("cctv", frame)
+            # cv2.imshow("cctv", frame)
       
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
+            # if cv2.waitKey(1) & 0xFF == 27:
+            #     break
             
-            # _, buffer = cv2.imencode(".jpg", frame)
-            # frame_bytes = buffer.tobytes()
+            _, buffer = cv2.imencode(".jpg", frame)
+            frame_bytes = buffer.tobytes()
 
-            # # Streaming frame sebagai response
-            # yield (b"--frame\r\n"
-            #     b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+            # Streaming frame sebagai response
+            yield (b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
 
         
         self.cap.release()
         cv2.destroyAllWindows()
 
-source = [
-    "pupuk.mp4", #0
-    "C:/Users/ASUS/AppData/Local/CapCut/Videos/subsidi-dan-granul.mp4", #1
-    "rtsp://vendor:Bontangpkt2025@36.37.123.10:554/Streaming/Channels/101/", #2
-    "rtsp://pkl:futureisours2025@36.37.123.19:554/Streaming/Channels/101/" #3
-    ]
+# source = [
+#     "pupuk.mp4", #0
+#     "C:/Users/ASUS/AppData/Local/CapCut/Videos/subsidi-dan-granul.mp4", #1
+#     "rtsp://vendor:Bontangpkt2025@36.37.123.10:554/Streaming/Channels/101/", #2
+#     "rtsp://pkl:futureisours2025@36.37.123.19:554/Streaming/Channels/101/" #3
+#     ]
         
-model = Predict(source[1])
-model.predict()  
-print(model.label) #  12 granul, 8 subsidi  
+# model = Predict(source[0])
+# model.predict()  
+# print(model.label) #  12 granul, 8 subsidi  
