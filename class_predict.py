@@ -6,20 +6,28 @@ import cv2
 import time
 
 class Predict:
-    def __init__(self,source:str):
+    def __init__(self,source:str,temp):
         self.model = YOLO("runs/detect/train15/weights/best.pt")
         self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
         self.cap = cv2.VideoCapture(source)
         self.counted_ids = set()
-        self.label = self.read_data()
+        self.label = self.read_data(temp)
         self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2  
+        self.source = temp
     
-    def read_data(self):
-        with open("pupuk_counter.json", "r") as file:
-           return json.load(file)
+    def read_data(self,name:str):
+        filename = f"pupuk_counter_{name}.json"
+        try:
+            with open(filename, "r") as file:
+                return json.load(file)
+        except FileNotFoundError:
+            default_data = {"bag": 0, "granul": 0, "subsidi": 0, "prill": 0}
+            with open(filename, "w") as file:
+                json.dump(default_data, file, indent=4)
+            return default_data
     
-    def write_data(self, data:dict):
-        with open("pupuk_counter.json", "w") as file:
+    def write_data(self, data:dict, name:str):
+        with open(f"pupuk_counter_{name}.json", "w") as file:
             json.dump(data, file)         
 
     def predict(self):
@@ -73,7 +81,7 @@ class Predict:
                 
                 if track_id not in self.counted_ids and center_x < self.middle_line :
                         self.label[detected_class] += 1
-                        self.write_data(self.label)
+                        self.write_data(self.label,self.source)
                         self.counted_ids.add(track_id)
                         # Highlight objek yang dihitung
                         cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 165, 255), 3)

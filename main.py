@@ -7,7 +7,7 @@ from class_predict import Predict
 from database import Database
 
 # RUN API
-# uvicorn main:app --port 5050 --workers 2
+# uvicorn main:app --port 5050 --workers 4
 
 CCTV_CHANNELS = {
     "Kamera1": "rtsp://pkl:futureisours2025@36.37.123.19:554/Streaming/Channels/101/",
@@ -30,9 +30,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/read")
+@app.get("/read_data/{id}")
+async def read(id:int):
+    return Database().read_data(id)
+
+@app.get("/read_sumber")
 async def read():
-    return Database().read_data()
+    return Database().read_sumber()
 
 @app.post("/write")
 async def write(data:Data):
@@ -45,7 +49,7 @@ async def video_feed(channel:str):
     
     try:
         return StreamingResponse(
-            Predict(CCTV_CHANNELS[channel]).predict(),
+            Predict(CCTV_CHANNELS[channel], channel).predict(),
             media_type="multipart/x-mixed-replace; boundary=frame"
         )
     except Exception as e:

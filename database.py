@@ -11,8 +11,12 @@ class Database:
         )   
         self.cursor = self.conn.cursor()
         
-    def read_data(self):
-        self.cursor.execute("SELECT * FROM pupuk")
+    def read_data(self, id):
+        self.cursor.execute("SELECT * FROM data WHERE sumber_id = %s", (id,))
+        return self.cursor.fetchall()
+
+    def read_sumber(self):
+        self.cursor.execute("SELECT * FROM sumber")
         return self.cursor.fetchall()
     
     def write_data(self, data:tuple):
