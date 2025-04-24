@@ -33,10 +33,8 @@ import json
     # # print(int(result.boxes.cls))
     
 
-CCTV_CHANNELS = {
-    "Kamera1": "rtsp://pkl:futureisours2025@36.37.123.19:554/Streaming/Channels/101/",
-    "Kamera2": "rtsp://vendor:Bontangpkt2025@36.37.123.10:554/Streaming/Channels/101/",
-    "video": "pupuk.mp4"
-}
+import glob
 
-print(list(CCTV_CHANNELS.keys()).index("Kamera2")+1)
+files = glob.glob("*.json")
+
+print(type(files))

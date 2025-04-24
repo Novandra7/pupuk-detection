@@ -2,12 +2,13 @@ import json
 import time
 import schedule
 import requests
+from pathlib import Path
+from datetime import datetime
 
-def read_data():
+def read_data(filename):
     try:
-        with open("pupuk_counter.json", "r") as file:
+        with open(filename, "r") as file:
             data = json.load(file)
-        data.pop('bag',None)
         return data
     except FileNotFoundError:
         print("[ERROR] File JSON tidak ditemukan!")
@@ -18,20 +19,24 @@ def read_data():
 
 def store():
     url = "http://127.0.0.1:5050/write"
-    data = read_data()
+    filenames = Path('.').glob('*.json')
 
-    if not data:  
-        print("[WARNING] Data kosong, tidak mengirim request.")
-        return  # Tidak mengirim request jika data kosong
+    for file in filenames:
+        print(f"[{datetime.now()}] Memproses file: {file.name}")
+        data = read_data(file)
 
-    try:
-        response = requests.post(url, json=data, timeout=2)  # Tambahkan timeout 5 detik
-        response.raise_for_status()  # Mendeteksi error HTTP (4xx atau 5xx)
+        if not data:
+            print(f"[WARNING] Data kosong di file {file.name}, lewati.")
+            continue
+        
+        try:
+            response = requests.post(url, json=data, timeout=2)  # Tambahkan timeout 5 detik
+            response.raise_for_status()  # Mendeteksi error HTTP (4xx atau 5xx)
 
-        print("[SUCCESS] Data berhasil dikirim:", data)
+            print("[SUCCESS] Data berhasil dikirim:", data)
 
-    except requests.exceptions.RequestException as e:
-        print(f"[ERROR] Gagal mengirim request: {e}")
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] Gagal mengirim request: {e}")
 
 schedule.every(1).hours.do(store)
 
