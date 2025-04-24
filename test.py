@@ -4,11 +4,11 @@ import numpy as np
 import torch
 import json
 
-test = np.array([[1, 2, 3], 
- [5, 6, 7], 
- [9, 10, 11]])
+# test = np.array([[1, 2, 3], 
+#  [5, 6, 7], 
+#  [9, 10, 11]])
 
-print(test[:,-1])
+# print(test[:,-1])
 
 # model = YOLO("runs/detect/train15/weights/best.pt")
 
@@ -31,3 +31,12 @@ print(test[:,-1])
     # print (boxes.xyxy[0])
     # print(result.boxes.cls)
     # # print(int(result.boxes.cls))
+    
+
+CCTV_CHANNELS = {
+    "Kamera1": "rtsp://pkl:futureisours2025@36.37.123.19:554/Streaming/Channels/101/",
+    "Kamera2": "rtsp://vendor:Bontangpkt2025@36.37.123.10:554/Streaming/Channels/101/",
+    "video": "pupuk.mp4"
+}
+
+print(list(CCTV_CHANNELS.keys()).index("Kamera2")+1)

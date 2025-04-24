@@ -21,7 +21,7 @@ class Database:
     
     def write_data(self, data:tuple):
         time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        query = "INSERT INTO pupuk VALUES (NULL, %s, %s, %s, %s);"
+        query = "INSERT INTO pupuk VALUES (NULL, %s, %s, %s, %s, %s);"
         self.cursor.execute(query, data + (time,))
         self.conn.commit()
         if self.cursor.rowcount > 0:

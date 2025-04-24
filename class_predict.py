@@ -6,14 +6,15 @@ import cv2
 import time
 
 class Predict:
-    def __init__(self,source:str,temp):
+    def __init__(self,source_api:str,source_name:str,source_id:int):
         self.model = YOLO("runs/detect/train15/weights/best.pt")
+        self.source_name = source_name
+        self.source_id = source_id
+        self.cap = cv2.VideoCapture(source_api)
         self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
-        self.cap = cv2.VideoCapture(source)
         self.counted_ids = set()
-        self.label = self.read_data(temp)
-        self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2  
-        self.source = temp
+        self.label = self.read_data(source_name)
+        self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2 
     
     def read_data(self,name:str):
         filename = f"pupuk_counter_{name}.json"
@@ -21,7 +22,7 @@ class Predict:
             with open(filename, "r") as file:
                 return json.load(file)
         except FileNotFoundError:
-            default_data = {"bag": 0, "granul": 0, "subsidi": 0, "prill": 0}
+            default_data = {"sumber_id": self.source_id, "bag": 0, "granul": 0, "subsidi": 0, "prill": 0}
             with open(filename, "w") as file:
                 json.dump(default_data, file, indent=4)
             return default_data
@@ -81,7 +82,8 @@ class Predict:
                 
                 if track_id not in self.counted_ids and center_x < self.middle_line :
                         self.label[detected_class] += 1
-                        self.write_data(self.label,self.source)
+                        self.label['sumber_id'] = self.source_id
+                        self.write_data(self.label,self.source_name)
                         self.counted_ids.add(track_id)
                         # Highlight objek yang dihitung
                         cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 165, 255), 3)
@@ -102,6 +104,8 @@ class Predict:
 
             cv2.putText(frame, inference_time, (90, 280), cv2.FONT_HERSHEY_SIMPLEX, 
                         0.7, (0, 165, 255), 2)
+            print(self.label)
+
             
             # cv2.imshow("cctv", frame)
       

@@ -48,8 +48,9 @@ async def video_feed(channel:str):
         raise HTTPException(status_code=404, detail="Channel not found")
     
     try:
+        source_id = list(CCTV_CHANNELS.keys()).index(channel) + 1
         return StreamingResponse(
-            Predict(CCTV_CHANNELS[channel], channel).predict(),
+            Predict(CCTV_CHANNELS[channel], channel, source_id).predict(),
             media_type="multipart/x-mixed-replace; boundary=frame"
         )
     except Exception as e:
