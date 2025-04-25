@@ -51,7 +51,8 @@ async def video_feed(channel:str):
         source_id = list(CCTV_CHANNELS.keys()).index(channel) + 1
         return StreamingResponse(
             Predict(CCTV_CHANNELS[channel], channel, source_id).predict(),
-            media_type="multipart/x-mixed-replace; boundary=frame"
+            media_type="multipart/x-mixed-replace; boundary=frame",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
