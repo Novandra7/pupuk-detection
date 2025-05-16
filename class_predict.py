@@ -5,24 +5,30 @@ import time
 import numpy as np
 from ultralytics import YOLO
 from sort import Sort
+from threading import Thread
 
 class Predict:
-    def __init__(self, source_api: str, source_name: str, source_id: int):
+    def __init__(self, url_stream: str, source_name: str, source_id: int):
         self.model = YOLO("runs/detect/train15/weights/best.pt")
-        self.source_api = source_api
+        self.url_stream = url_stream
         self.source_name = source_name
         self.source_id = source_id
-        self.label = self.read_data(source_name)
+        self.label = self.read_data(source_name)[-1]
         self.class_names = list(self.label.keys())
         self.cap = self.init_capture()
         self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
         self.counted_ids = set()
         self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2 
 
+        self.latest_frame = None
+        self.pred_thread = Thread(target=self._predict_loop, daemon=True)
+        self.pred_thread.start()
+
+
     def init_capture(self):
-        cap = cv2.VideoCapture(self.source_api, cv2.CAP_FFMPEG)
+        cap = cv2.VideoCapture(self.url_stream, cv2.CAP_FFMPEG)
         if not cap.isOpened():
-            raise RuntimeError(f"[ERROR] Tidak bisa membuka stream dari {self.source_api}")
+            raise RuntimeError(f"[ERROR] Tidak bisa membuka stream dari {self.url_stream}")
         return cap
 
     def reconnect(self):
@@ -34,22 +40,53 @@ class Predict:
     def read_data(self, name: str):
         filename = f"pupuk_counter_{name}.json"
         try:
-            with open(filename, "r") as file:
-                return json.load(file)
-        except FileNotFoundError:
-            default_data = {"sumber_id": self.source_id, "bag": 0, "granul": 0, "subsidi": 0, "prill": 0}
+            if os.path.exists(filename) and os.path.getsize(filename) > 0:
+                with open(filename, "r") as file:
+                    return json.load(file)
+            else:
+                raise FileNotFoundError  # Perlakukan file kosong sama seperti tidak ditemukan
+
+        except (FileNotFoundError, json.JSONDecodeError):
+            default_data = [{
+                "sumber_id": self.source_id,
+                "bag": 0,
+                "granul": 0,
+                "subsidi": 0,
+                "prill": 0,
+                "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')
+            }]
             with open(filename, "w") as file:
                 json.dump(default_data, file, indent=4)
             return default_data
+        
+    def get_last_data(self, name: str):
+        filename = f"pupuk_counter_{name}.json"
+        try:
+            with open(filename, "r") as file:
+                data = json.load(file)
+                return data[-1] if isinstance(data, list) else data
+        except FileNotFoundError:
+            return None
 
     def write_data(self, data: dict, name: str):
+        existing_data = self.read_data(name)
+        if not isinstance(existing_data, list):
+                existing_data = [existing_data]
+        existing_data.append(data)
         with open(f"pupuk_counter_{name}.json", "w") as file:
-            json.dump(data, file)
+            json.dump(existing_data, file, indent=4)
 
     def draw_text(self, frame, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.7, color=(0, 165, 255), thickness=2):
         return cv2.putText(frame, text, position, font, font_scale, color, thickness)
+    
+    def stream_frames(self):
+        while True:
+            if self.latest_frame:
+                yield (b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + self.latest_frame + b"\r\n")
+            time.sleep(0.03)  # atur delay sesuai kebutuhan (sekitar 30 FPS)
 
-    def predict(self):
+    def _predict_loop(self):
         while True:
             try:
                 success, frame = self.cap.read()
@@ -89,6 +126,7 @@ class Predict:
                     if track_id not in self.counted_ids and center_x < self.middle_line:
                         self.label[detected_class] += 1
                         self.label['sumber_id'] = self.source_id
+                        self.label['timestamp'] = time.strftime('%Y-%m-%d %H:%M:%S')
                         self.write_data(self.label, self.source_name)
                         self.counted_ids.add(track_id)
                         cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 165, 255), 3)
@@ -106,12 +144,9 @@ class Predict:
                 #     break
 
                 _, buffer = cv2.imencode(".jpg", frame)
-                frame_bytes = buffer.tobytes()
-
-                yield (b"--frame\r\n"
-                    b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n")
+                self.latest_frame = buffer.tobytes()
                 
             except GeneratorExit:
                 print("[INFO] Stream ditutup oleh client.")
-            except Exception as e:
-                print(f"[ERROR] Terjadi kesalahan: {e}")
+            # except Exception as e:
+            #     print(f"[ERROR] Terjadi kesalahan: {e}")

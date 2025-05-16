@@ -24,26 +24,32 @@ def store():
     for file in filenames:
         print(f"[{datetime.now()}] Memproses file: {file.name}")
         data = read_data(file)
+        for i in data:
+            print(i['timestamp'])
 
         if not data:
             print(f"[WARNING] Data kosong di file {file.name}, lewati.")
             continue
         
         try:
-            response = requests.post(url, json=data, timeout=2)  # Tambahkan timeout 5 detik
+            print(data)
+            response = requests.post(url, json=data, timeout=3)  # Tambahkan timeout 3 detik
             response.raise_for_status()  # Mendeteksi error HTTP (4xx atau 5xx)
 
             print("[SUCCESS] Data berhasil dikirim:", data)
 
+            file.unlink()
+            print(f"[INFO] File {file.name} telah dihapus setelah berhasil dikirim.")
+
         except requests.exceptions.RequestException as e:
             print(f"[ERROR] Gagal mengirim request: {e}")
 
-schedule.every(1).hours.do(store)
+# schedule.every(1).hours.do(store)
 
-while True:
-    try:
-        schedule.run_pending()
-        time.sleep(1)
-    except KeyboardInterrupt:
-        print("\n[INFO] Program dihentikan oleh pengguna.")
-        break
+# while True:
+#     try:
+#         schedule.run_pending()
+#         time.sleep(1)
+#     except KeyboardInterrupt:
+#         print("\n[INFO] Program dihentikan oleh pengguna.")
+#         break
