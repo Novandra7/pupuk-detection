@@ -1,42 +1,42 @@
-from ultralytics import YOLO
-import cv2
-import numpy as np
-import torch
-import json
+# import cv2
 
-# test = np.array([[1, 2, 3], 
-#  [5, 6, 7], 
-#  [9, 10, 11]])
+# # URL RTSP stream
+# rtsp_url = 'rtsp://vendor:Bontangpkt2025@36.37.123.10:554/Streaming/Channels/101/'
 
-# print(test[:,-1])
+# # Buka stream RTSP
+# cap = cv2.VideoCapture(rtsp_url)
 
-# model = YOLO("runs/detect/train15/weights/best.pt")
+# # Periksa apakah stream berhasil dibuka
+# if not cap.isOpened():
+#     print("Error: Tidak dapat membuka stream RTSP.")
+#     exit()
 
-# results = model('img/subsidi.jpg')
+# while True:
+#     try:
+#         # Baca frame dari stream
+#         ret, frame = cap.read()
+        
+#         # Jika frame berhasil dibaca
+#         if not ret:
+#             print("Gagal membaca frame.")
+#             break
+        
+#         # Tampilkan frame
+#         cv2.imshow('RTSP Stream', frame)
+        
+#         # Tunggu tombol 'q' untuk keluar
+#         if cv2.waitKey(1) & 0xFF == ord('q'):
+#             break
+#     except Exception as e:
+#         print("error.",e)
+#         break
 
+# # Lepaskan objek video dan tutup jendela
+# cap.release()
+# cv2.destroyAllWindows()
 
-# for result in results:
-#     for i,box in enumerate(result.boxes):
-#         print(i,box.xyxy[0])
-#         print(box.cls.item())
-
-    # boxes = result.boxes  # Boxes object for bounding box outputs
-    # masks = result.masks  # Masks object for segmentation masks outputs
-    # keypoints = result.keypoints  # Keypoints object for pose outputs
-    # probs = result.probs  # Probs object for classification outputs
-    # obb = result.obb  # Oriented boxes object for OBB outputs
-    # result.show()  # display to screen
-    # print(list(result.names.values()))
-    # # result.save(filename="result.jpg")  # save to disk
-    # print (boxes.xyxy[0])
-    # print(result.boxes.cls)
-    # # print(int(result.boxes.cls))
-    
-
-CCTV_CHANNELS = {
-    "Kamera1": "rtsp://pkl:futureisours2025@36.37.123.19:554/Streaming/Channels/101/",
-    "Kamera2": "rtsp://vendor:Bontangpkt2025@36.37.123.10:554/Streaming/Channels/101/",
-    "video": "pupuk.mp4"
-}
-
-print(list(CCTV_CHANNELS.keys()).index("Kamera2")+1)
+from class_predict import Predict
+test = Predict("pupuk.mp4", "CCTV-3", 3)
+print(test.label)
+print(test.class_names)
+print(test.get_last_data("CCTV-3"))

@@ -2,43 +2,62 @@ import json
 import time
 import schedule
 import requests
+from pathlib import Path
+from datetime import datetime
 
-def read_data():
-    try:
-        with open("pupuk_counter.json", "r") as file:
-            data = json.load(file)
-        data.pop('bag',None)
-        return data
-    except FileNotFoundError:
-        print("[ERROR] File JSON tidak ditemukan!")
-        return {}  # Mengembalikan dictionary kosong jika file tidak ditemukan
-    except json.JSONDecodeError:
-        print("[ERROR] File JSON rusak atau tidak valid!")
-        return {}  # Mengembalikan dictionary kosong jika JSON tidak valid
+class Scheduler:
+    def __init__(self):
+        self.url = "http://127.0.0.1:5050/write"
+        self.filenames = Path('.').glob('*.json') 
+        self.running = False
 
-def store():
-    url = "http://127.0.0.1:5050/write"
-    data = read_data()
+    def read_data(self,filename):
+        try:
+            with open(filename, "r") as file:
+                data = json.load(file)
+            return data
+        except FileNotFoundError:
+            print("[ERROR] File JSON tidak ditemukan!")
+            return {}  # Mengembalikan dictionary kosong jika file tidak ditemukan
+        except json.JSONDecodeError:
+            print("[ERROR] File JSON rusak atau tidak valid!")
+            return {}  # Mengembalikan dictionary kosong jika JSON tidak valid
 
-    if not data:  
-        print("[WARNING] Data kosong, tidak mengirim request.")
-        return  # Tidak mengirim request jika data kosong
+    def store(self):
+        for file in self.filenames:
+            print(f"[{datetime.now()}] Memproses file: {file.name}")
+            data = self.read_data(file)
+            for i in data:
+                print(i['timestamp'])
 
-    try:
-        response = requests.post(url, json=data, timeout=2)  # Tambahkan timeout 5 detik
-        response.raise_for_status()  # Mendeteksi error HTTP (4xx atau 5xx)
+            if not data:
+                print(f"[WARNING] Data kosong di file {file.name}, lewati.")
+                continue
+            
+            try:
+                response = requests.post(self.url, json=data, timeout=3)  # Tambahkan timeout 3 detik
+                response.raise_for_status()  # Mendeteksi error HTTP (4xx atau 5xx)
 
-        print("[SUCCESS] Data berhasil dikirim:", data)
+                print("[SUCCESS] Data berhasil dikirim:")
 
-    except requests.exceptions.RequestException as e:
-        print(f"[ERROR] Gagal mengirim request: {e}")
+                file.unlink()
+                print(f"[INFO] File {file.name} telah dihapus setelah berhasil dikirim.")
 
-schedule.every(1).hours.do(store)
+            except requests.exceptions.RequestException as e:
+                print(f"[ERROR] Gagal mengirim request: {e}")
 
-while True:
-    try:
-        schedule.run_pending()
-        time.sleep(1)
-    except KeyboardInterrupt:
-        print("\n[INFO] Program dihentikan oleh pengguna.")
-        break
+    def run_scheduler(self):
+        schedule.every(10).minutes.do(self.store)
+        print("[INFO] scheduler dimulai")
+        self.running = True
+        while self.running:
+            try:
+                schedule.run_pending()
+                time.sleep(1)
+            except KeyboardInterrupt:
+                print("\n[INFO] Program dihentikan oleh pengguna.")
+                break
+            
+    def stop_scheduler(self):
+        self.running = False
+        print("[INFO] Scheduler dihentikan secara programatik.")
