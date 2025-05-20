@@ -1,30 +1,31 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 from class_predict import Predict
 from database import Database
-import scheduler
+from typing import Optional
 
-import os
+from scheduler import Scheduler
+import threading
 
 # RUN API
-# uvicorn main:app --port 5050 --workers 4
-
-CCTV_CHANNELS = {i["source_name"]: i["url_streaming"] for i in Database().read_cctv_sources()}
-
-predict_instances = {}
-
-class Data(BaseModel):
-    sumber_id: int
-    shift_id: int
-    bag: int
-    granul: int
-    subsidi: int
-    prill: int
+# uvicorn {file_name}:{ variable_class_FastAPI } --port 5050
 
 app = FastAPI()
+
+CCTV_CHANNELS = {i["source_name"]: i["url_streaming"] for i in Database().read_cctv_sources()}
+predict_instances = {}
+scheduler_instance = Scheduler()
+
+class Data(BaseModel):
+    ms_cctv_sources_id: int
+    ms_shift_id: int
+    ms_bag_id: int
+    quantity: int
+    timestamp: str
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,8 +40,8 @@ def read(id:int):
     return Database().read_records(id)
 
 @app.get("/read_formatted_records/{id}")
-def read(id:int):
-    return Database().read_formatted_records(id)
+def read(id: int, id_shift: Optional[int] = Query(None)):
+    return Database().read_formatted_records(id, id_shift)
 
 @app.get("/read_curdate_records/{id}")
 def read(id:int):
@@ -60,27 +61,29 @@ def read():
 
 @app.get("/read_shift")
 def read():
-    return Database().read_shift()
+    return Database().read_shift()  
 
 @app.get("/write_records")
-def write_records():
-    scheduler.store()
-    return {"status": "success"}
+def write():
+    scheduler_instance.store()
+    return{"message": "Berhasil store data."}
 
-@app.post("/write")
-def write(data: list[Data]):
-    db = Database()
-    for item in data:
-        values = tuple(item.model_dump().values())
-        print("[DEBUG] Data yang akan disimpan:", values)
-        try:
-            db.write_record(values)
-        except Exception as e:
-            print("[ERROR] Gagal menyimpan ke DB:", e)
-            raise HTTPException(status_code=500, detail=str(e))
-    return {"message": f"{len(data)} records saved successfully."}
 
-            
+@app.get("/start_scheduler")
+def start_scheduler():
+    if scheduler_instance.running:
+        return {"message": "Scheduler sudah berjalan."}
+
+    scheduler_thread = threading.Thread(target=scheduler_instance.run_scheduler, daemon=True)
+    scheduler_thread.start()
+    return {"message": "Scheduler dimulai."}   
+
+@app.get("/stop_scheduler")
+def stop_scheduler():
+    if not scheduler_instance.running:
+        return {"message": "Scheduler belum berjalan."}
+    scheduler_instance.stop_scheduler()
+    return {"message": "Scheduler dihentikan."} 
 
 @app.get("/video_feed/{channel}")
 async def video_feed(channel: str):
@@ -107,3 +110,28 @@ async def start_predict(channel: str):
     predict_instances[channel] = instance
 
     return {"message": f"Prediksi dimulai untuk channel '{channel}'"}
+
+@app.get("/stop_predict/{channel}")
+async def stop_predict(channel: str):
+    instance = predict_instances.get(channel)
+    if not instance:
+        raise HTTPException(status_code=404, detail="Prediksi tidak ditemukan untuk channel ini")
+    try:
+        instance.stop_predict()
+        del predict_instances[channel]
+        return {"message": f"Prediksi dihentikan untuk channel '{channel}'"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gagal menghentikan prediksi: {e}")
+
+
+@app.post("/write")
+def write(data: list[Data]):
+    for item in data:
+        values = tuple(item.model_dump().values())
+        print("[DEBUG] Data yang akan disimpan:", values)
+        try:
+            Database().write_record(values)
+        except Exception as e:
+            print("[ERROR] Gagal menyimpan ke DB:", e)
+            raise HTTPException(status_code=500, detail=str(e))
+    return {"message": f"{len(data)} records saved successfully."}

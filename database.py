@@ -9,7 +9,7 @@ class Database:
             host="localhost",  
             user="root",           
             password="",           
-            database="fertilizer_db"
+            database="pupuk_baru"
         )   
         self.cursor = self.conn.cursor()
         
@@ -19,46 +19,60 @@ class Database:
         rows = self.cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]
     
-    def read_formatted_records(self, id):
+    def read_temp_data_format(self):
+        self.cursor.execute("SELECT * FROM tr_fertilizer_records LIMIT 0")
+        columns = [desc[0] for desc in self.cursor.description if desc[0] != 'id']
+        return {col: None for col in columns}
+    
+    def read_formatted_records(self, id_warehouse, id_shift=None):
         query = """
-            SELECT
-                w.id AS warehouse_id,
-                w.warehouse_name,
-                c.id AS cctv_id,
-                c.source_name,
-                r.ms_shift_id,
-                s.shift_name AS shift_name,
-                SUM(r.bag) AS total_bag,
-                SUM(r.granul) AS total_granul,
-                SUM(r.subsidi) AS total_subsidi,
-                SUM(r.prill) AS total_prill,
-                MIN(r.datetime) AS start_time,
-                MAX(r.datetime) AS end_time
-            FROM
-                ms_warehouse w
-            JOIN ms_cctv_sources c ON
-                c.ms_warehouse_id = w.id
-            LEFT JOIN tr_fertilizer_records r ON
-                r.ms_cctv_sources_id = c.id
-            LEFT JOIN ms_shift s ON
-                r.ms_shift_id = s.id
-            WHERE
-                w.id = %s
-            GROUP BY
-                w.id,
-                w.warehouse_name,
-                c.id,
-                c.source_name,
-                r.ms_shift_id,
-                s.shift_name
-            ORDER BY
-                c.id ASC,
-                r.ms_shift_id ASC;
+        SELECT
+            DATE(r.timestamp) AS record_date, 
+            w.warehouse_name,
+            c.source_name,
+            s.id AS shift_id,
+            s.shift_name,
+            b.bag_type,
+            SUM(r.quantity) AS total_quantity
+        FROM
+            tr_fertilizer_records r
+        INNER JOIN ms_shift s ON
+            r.ms_shift_id = s.id
+        INNER JOIN ms_cctv_sources c ON
+            r.ms_cctv_sources_id = c.id
+        INNER JOIN ms_bag b ON
+            r.ms_bag_id = b.id
+        INNER JOIN ms_warehouse w ON
+            c.ms_warehouse_id = w.id
+        WHERE
+            w.id = %s
+     
         """
-        self.cursor.execute(query, (id,))
+
+        params = [id_warehouse]
+
+        if id_shift is not None:
+            query += " AND r.ms_shift_id = %s"
+            params.append(id_shift)
+
+        query += """
+            GROUP BY
+                DATE(r.timestamp),             
+                w.warehouse_name,
+                c.source_name,
+                s.id,
+                s.shift_name,
+                b.bag_type
+            ORDER BY
+                record_date ASC,                 
+                s.id ASC;
+        """
+
+        self.cursor.execute(query, params)
         columns = [desc[0] for desc in self.cursor.description]
         rows = self.cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]
+
 
     def read_curdate_records(self,id):
         query = """
@@ -76,7 +90,8 @@ class Database:
         JOIN ms_shift s ON
             fr.ms_shift_id = s.id
         WHERE
-            cs.id = %s
+            cs.id = %s AND
+            DATE(fr.datetime) = CURDATE()
         GROUP BY
             fr.ms_shift_id, s.shift_name;                           
         """
@@ -102,9 +117,15 @@ class Database:
         columns = [desc[0] for desc in self.cursor.description]
         rows = self.cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]
+   
+    def read_bag(self):
+        self.cursor.execute("SELECT * FROM ms_bag")
+        columns = [desc[0] for desc in self.cursor.description]
+        rows = self.cursor.fetchall()
+        return [dict(zip(columns, row)) for row in rows]
 
     def read_shift(self):
-        self.cursor.execute("SELECT * FROM ms_shift")
+        self.cursor.execute("SELECT * FROM ms_shift WHERE is_active = 1")
         columns = [desc[0] for desc in self.cursor.description]
         rows = self.cursor.fetchall()
         new_data = []
@@ -117,9 +138,8 @@ class Database:
         return new_data
     
     def write_record(self, data:tuple):
-        time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        query = "INSERT INTO tr_fertilizer_records VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, NULL);"
-        self.cursor.execute(query, data + (time,))
+        query = "INSERT INTO tr_fertilizer_records VALUES (NULL, %s, %s, %s, %s, %s);"
+        self.cursor.execute(query, data)
         self.conn.commit()
         if self.cursor.rowcount > 0:
             return True
