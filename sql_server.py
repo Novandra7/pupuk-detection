@@ -6,7 +6,7 @@ class Database:
         self.con = pyodbc.connect(
             'DRIVER={ODBC Driver 18 for SQL Server};'
             'SERVER=12.7.25.11;'
-            'DATABASE=DB_PUPUK;'
+            'DATABASE=db_pklti;'
             'UID=pklti_u;'
             'PWD=K0neksi4man12!'
         )
