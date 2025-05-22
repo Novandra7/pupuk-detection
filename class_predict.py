@@ -6,7 +6,7 @@ import numpy as np
 from ultralytics import YOLO
 from sort import Sort
 from threading import Thread
-from database import Database
+from sql_server import Database
 from datetime import datetime
 
 class Predict:

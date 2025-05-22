@@ -35,8 +35,10 @@
 # cap.release()
 # cv2.destroyAllWindows()
 
-from class_predict import Predict
-test = Predict("pupuk.mp4", "CCTV-3", 3)
-print(test.label)
-print(test.class_names)
-print(test.get_last_data("CCTV-3"))
+# from class_predict import Predict
+# test = Predict("pupuk.mp4", "CCTV-3", 3)
+# print(test.label)
+# print(test.class_names)
+# print(test.get_last_data("CCTV-3"))
+
+print("berhasil menjalankan docker")

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 from class_predict import Predict
-from database import Database
+from sql_server import Database
 from typing import Optional
 
 from scheduler import Scheduler
