@@ -9,7 +9,7 @@ class Database:
             host="localhost",  
             user="root",           
             password="",           
-            database="pupuk_baru"
+            database="pupuk2"
         )   
         self.cursor = self.conn.cursor()
         
@@ -24,7 +24,7 @@ class Database:
         columns = [desc[0] for desc in self.cursor.description if desc[0] != 'id']
         return {col: None for col in columns}
     
-    def read_formatted_records(self, id_warehouse, id_shift=None):
+    def read_formatted_records(self, id_warehouse, date=None):
         query = """
         SELECT
             DATE(r.timestamp) AS record_date, 
@@ -51,9 +51,9 @@ class Database:
 
         params = [id_warehouse]
 
-        if id_shift is not None:
-            query += " AND r.ms_shift_id = %s"
-            params.append(id_shift)
+        if date is not None:
+            query += " AND DATE(r.timestamp) = %s"
+            params.append(date)
 
         query += """
             GROUP BY

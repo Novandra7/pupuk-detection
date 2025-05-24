@@ -29,7 +29,7 @@ class Data(BaseModel):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000"],
+    allow_origins=["http://12.7.25.82:44080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,8 +40,8 @@ def read(id:int):
     return Database().read_records(id)
 
 @app.get("/read_formatted_records/{id}")
-def read(id: int, id_shift: Optional[int] = Query(None)):
-    return Database().read_formatted_records(id, id_shift)
+def read(id: int, date: Optional[str] = Query(None)):
+    return Database().read_formatted_records(id, date)
 
 @app.get("/read_curdate_records/{id}")
 def read(id:int):

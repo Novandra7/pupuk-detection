@@ -8,7 +8,8 @@ class Database:
             'SERVER=12.7.25.11;'
             'DATABASE=db_pklti;'
             'UID=pklti_u;'
-            'PWD=K0neksi4man12!'
+            'PWD=K0neksi4man12!;'
+            ''
         )
         self.cursor = self.con.cursor()
 
