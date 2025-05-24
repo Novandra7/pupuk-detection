@@ -24,10 +24,10 @@ class Database:
         columns = [desc[0] for desc in self.cursor.description if desc[0] != 'id']
         return {col: None for col in columns}
 
-    def read_formatted_records(self, id_warehouse, id_shift=None):
+    def read_formatted_records(self, id_warehouse, date=None):
         query = """
         SELECT
-            CAST(r.timestamp AS DATE) AS record_date,
+            CAST(r.timestamp AS DATE) AS record_date, 
             w.warehouse_name,
             c.source_name,
             s.id AS shift_id,
@@ -36,36 +36,42 @@ class Database:
             SUM(r.quantity) AS total_quantity
         FROM
             tr_fertilizer_records r
-        INNER JOIN ms_shift s ON r.ms_shift_id = s.id
-        INNER JOIN ms_cctv_sources c ON r.ms_cctv_sources_id = c.id
-        INNER JOIN ms_bag b ON r.ms_bag_id = b.id
-        INNER JOIN ms_warehouse w ON c.ms_warehouse_id = w.id
-        WHERE w.id = ?
+        INNER JOIN ms_shift s ON
+            r.ms_shift_id = s.id
+        INNER JOIN ms_cctv_sources c ON
+            r.ms_cctv_sources_id = c.id
+        INNER JOIN ms_bag b ON
+            r.ms_bag_id = b.id
+        INNER JOIN ms_warehouse w ON
+            c.ms_warehouse_id = w.id
+        WHERE
+            w.id = ?
         """
 
         params = [id_warehouse]
 
-        if id_shift is not None:
-            query += " AND r.ms_shift_id = ?"
-            params.append(id_shift)
+        if date is not None:
+            query += " AND CAST(r.timestamp AS DATE) = ?"
+            params.append(date)
 
         query += """
-        GROUP BY
-            CAST(r.timestamp AS DATE),
-            w.warehouse_name,
-            c.source_name,
-            s.id,
-            s.shift_name,
-            b.bag_type
-        ORDER BY
-            record_date ASC,
-            s.id ASC;
+            GROUP BY
+                CAST(r.timestamp AS DATE),
+                w.warehouse_name,
+                c.source_name,
+                s.id,
+                s.shift_name,
+                b.bag_type
+            ORDER BY
+                record_date ASC,
+                s.id ASC;
         """
 
-        self.cursor.execute(query, params)
+        self.cursor.execute(query, tuple(params))
         columns = [desc[0] for desc in self.cursor.description]
         rows = self.cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]
+
 
     # def read_curdate_records(self, id):
         query = """
