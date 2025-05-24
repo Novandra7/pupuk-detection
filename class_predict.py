@@ -20,16 +20,15 @@ class Predict:
         self.temp_data_format = dict.fromkeys(Database().read_temp_data_format())
         self.total_qty = {}
         self.is_running = True
-        self.undifined = 0
         
         self.cap = self.init_capture()
         self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
         self.counted_ids = set()
         self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2 
 
-        # self.latest_frame = None
-        # self.pred_thread = Thread(target=self._predict_loop, daemon=True)
-        # self.pred_thread.start()
+        self.latest_frame = None
+        self.pred_thread = Thread(target=self._predict_loop, daemon=True)
+        self.pred_thread.start()
 
 
     def init_capture(self):
@@ -106,8 +105,6 @@ class Predict:
 
                 start_time = time.time()
                 results = self.model(frame)
-                if len(results[0].boxes) == 0:
-                    self.undifined +=1
                 detections = np.empty((0, 6))
                 cv2.line(frame, (self.middle_line, 0), (self.middle_line, frame.shape[0]), (255, 255, 255), 2)
 
@@ -180,5 +177,5 @@ class Predict:
         self.cap.release()
 
 
-Predict("pupuk.mp4", "CCTV-2", 2)._predict_loop()
+# Predict("pupuk.mp4", "CCTV-2", 2)._predict_loop()
 

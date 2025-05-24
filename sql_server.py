@@ -9,7 +9,7 @@ class Database:
             'DATABASE=db_pklti;'
             'UID=pklti_u;'
             'PWD=K0neksi4man12!;'
-            ''
+            'TrustServerCertificate=yes;'
         )
         self.cursor = self.con.cursor()
 
