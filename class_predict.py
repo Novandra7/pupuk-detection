@@ -2,17 +2,23 @@ import os
 import json
 import cv2
 import time
+import subprocess
 import numpy as np
 from ultralytics import YOLO
 from sort import Sort
 from threading import Thread
-from sql_server import Database
+from database import Database
 from datetime import datetime
 
 class Predict:
     def __init__(self, url_stream: str, cctv_name: str, id_cctv: int):
-        self.model = YOLO("./runs/detect/train15/weights/best.pt")
         self.url_stream = url_stream
+        self.cap = self.init_capture()
+        self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
+        self.counted_ids = set()
+        self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2 
+
+        self.model = YOLO("./runs/detect/train15/weights/best.pt")
         self.cctv_name = cctv_name
         self.id_cctv = id_cctv
         self.label = Database().read_bag()
@@ -20,22 +26,37 @@ class Predict:
         self.temp_data_format = dict.fromkeys(Database().read_temp_data_format())
         self.total_qty = {}
         self.is_running = True
-        
-        self.cap = self.init_capture()
-        self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
-        self.counted_ids = set()
-        self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2 
-
+    
         self.latest_frame = None
         self.pred_thread = Thread(target=self._predict_loop, daemon=True)
         self.pred_thread.start()
 
-
     def init_capture(self):
+        def is_rtsp_accessible(url, timeout=2):
+            try:
+                subprocess.run(
+                    ["ffprobe", "-v", "error", "-rtsp_transport", "tcp", "-i", url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=timeout
+                )
+                return True
+            except subprocess.TimeoutExpired:
+                print(f"[ERROR] RTSP check timeout setelah {timeout} detik")
+                return False
+            except Exception as e:
+                print(f"[ERROR] RTSP tidak dapat diakses: {e}")
+                return False
+
+        if not is_rtsp_accessible(self.url_stream):
+            raise RuntimeError(f"[ERROR] Tidak bisa mengakses stream RTSP: {self.url_stream}")
+
         cap = cv2.VideoCapture(self.url_stream, cv2.CAP_FFMPEG)
         if not cap.isOpened():
-            raise RuntimeError(f"[ERROR] Tidak bisa membuka stream dari {self.url_stream}")
+            raise RuntimeError(f"[ERROR] Gagal membuka stream setelah ffprobe sukses: {self.url_stream}")
+        
         return cap
+
 
     def reconnect(self):
         print("[INFO] Mencoba reconnect ke stream...")
@@ -70,7 +91,7 @@ class Predict:
         return cv2.putText(frame, text, position, font, font_scale, color, thickness)
     
     def stream_frames(self):
-        while True:
+        while self.is_running:
             if self.latest_frame:
                 yield (b"--frame\r\n"
                     b"Content-Type: image/jpeg\r\n\r\n" + self.latest_frame + b"\r\n")
@@ -135,8 +156,7 @@ class Predict:
 
                     if track_id not in self.counted_ids and center_x < self.middle_line:
                         current_shift_time = time.strftime('%H:%M:%S')
-                        custom = "07:00:00"
-                        detect_current_shift = self.detect_current_shift(custom)
+                        detect_current_shift = self.detect_current_shift(current_shift_time)
 
                         if detected_class_id not in self.total_qty:
                             self.total_qty[detected_class_id] = 1
@@ -168,14 +188,18 @@ class Predict:
                 
             except GeneratorExit:
                 print("[INFO] Stream ditutup oleh client.")
-            # except Exception as e:
-            #     print(f"[ERROR] Terjadi kesalahan: {e}")
+            except Exception as e:
+                print(f"[ERROR] Terjadi kesalahan: {e}")
+                self.reconnect()
+                time.sleep(1)
 
     def stop_predict(self):
         print(f"[INFO] prediksi dihentikan untuk {self.cctv_name}")
         self.is_running = False
+        self.latest_frame = None
         self.cap.release()
 
 
 # Predict("pupuk.mp4", "CCTV-2", 2)._predict_loop()
+# Predict("rtsp://vendor:Bontangpkt2025@36.37.123.10:554/Streaming/Channels/101/", "CCTV-2", 2)._predict_loop()
 

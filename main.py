@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 from class_predict import Predict
-from sql_server import Database
+from database import Database
 from typing import Optional
 
 from scheduler import Scheduler
@@ -29,7 +29,7 @@ class Data(BaseModel):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://12.7.25.82:44080"],
+    allow_origins=["http://127.0.0.1:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,8 +40,8 @@ def read(id:int):
     return Database().read_records(id)
 
 @app.get("/read_formatted_records/{id}")
-def read(id: int, date: Optional[str] = Query(None)):
-    return Database().read_formatted_records(id, date)
+def read(id: int, date: Optional[str] = Query(None), name: Optional[str] = Query(None), shift:Optional[str] = Query(None)):
+    return Database().read_formatted_records(id, date, name, shift)
 
 @app.get("/read_curdate_records/{id}")
 def read(id:int):
@@ -98,21 +98,25 @@ async def video_feed(channel: str):
     )
     
 @app.get("/start_predict/{channel}")
-async def start_predict(channel: str):
+def start_predict(channel: str, background_tasks: BackgroundTasks):
     if channel not in CCTV_CHANNELS:
         raise HTTPException(status_code=404, detail="Channel not found")
 
     if channel in predict_instances:
         return {"message": f"Prediksi untuk channel '{channel}' sudah berjalan."}
 
-    source_id = list(CCTV_CHANNELS.keys()).index(channel) + 1
-    instance = Predict(CCTV_CHANNELS[channel], channel, source_id)
-    predict_instances[channel] = instance
+    def run_prediction():
+        source_id = list(CCTV_CHANNELS.keys()).index(channel) + 1
+        instance = Predict(CCTV_CHANNELS[channel], channel, source_id)
+        predict_instances[channel] = instance
+        print(f"[INFO] Background prediksi dimulai untuk {channel}")
 
-    return {"message": f"Prediksi dimulai untuk channel '{channel}'"}
+    background_tasks.add_task(run_prediction)
+
+    return {"message": f"Prediksi untuk '{channel}' dijadwalkan di background."}
 
 @app.get("/stop_predict/{channel}")
-async def stop_predict(channel: str):
+async def stop_predict(channel: str, ):
     instance = predict_instances.get(channel)
     if not instance:
         raise HTTPException(status_code=404, detail="Prediksi tidak ditemukan untuk channel ini")

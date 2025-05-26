@@ -24,7 +24,7 @@ class Database:
         columns = [desc[0] for desc in self.cursor.description if desc[0] != 'id']
         return {col: None for col in columns}
 
-    def read_formatted_records(self, id_warehouse, date=None):
+    def read_formatted_records(self, id_warehouse, date=None, name=None, shift=None):
         query = """
         SELECT
             CAST(r.timestamp AS DATE) AS record_date, 
@@ -53,6 +53,12 @@ class Database:
         if date is not None:
             query += " AND CAST(r.timestamp AS DATE) = ?"
             params.append(date)
+        if name is not None:
+            query += " AND c.source_name = ?"
+            params.append(name)
+        if shift is not None:
+            query += " AND s.shift_name = ?"
+            params.append(shift)
 
         query += """
             GROUP BY
