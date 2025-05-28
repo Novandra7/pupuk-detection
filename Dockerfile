@@ -18,6 +18,7 @@ RUN apt-get update && \
     ACCEPT_EULA=Y apt-get install -y \
     unixodbc \
     msodbcsql18 \
+    ffmpeg \
     libgl1 && \
     rm -rf /var/lib/apt/lists/*
 
