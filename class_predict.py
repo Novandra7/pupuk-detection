@@ -32,24 +32,24 @@ class Predict:
         self.pred_thread.start()
 
     def init_capture(self):
-        def is_rtsp_accessible(url, timeout=2):
-            try:
-                subprocess.run(
-                    ["ffprobe", "-v", "error", "-rtsp_transport", "tcp", "-i", url],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=timeout
-                )
-                return True
-            except subprocess.TimeoutExpired:
-                print(f"[ERROR] RTSP check timeout setelah {timeout} detik")
-                return False
-            except Exception as e:
-                print(f"[ERROR] RTSP tidak dapat diakses: {e}")
-                return False
+        # def is_rtsp_accessible(url, timeout=5):
+        #     try:
+        #         subprocess.run(
+        #             ["ffprobe", "-v", "error", "-rtsp_transport", "tcp", "-i", url],
+        #             stdout=subprocess.DEVNULL,
+        #             stderr=subprocess.DEVNULL,
+        #             timeout=timeout
+        #         )
+        #         return True
+        #     except subprocess.TimeoutExpired:
+        #         print(f"[ERROR] RTSP check timeout setelah {timeout} detik")
+        #         return False
+        #     except Exception as e:
+        #         print(f"[ERROR] RTSP tidak dapat diakses: {e}")
+        #         return False
 
-        if not is_rtsp_accessible(self.url_stream):
-            raise RuntimeError(f"[ERROR] Tidak bisa mengakses stream RTSP: {self.url_stream}")
+        # if not is_rtsp_accessible(self.url_stream):
+        #     raise RuntimeError(f"[ERROR] Tidak bisa mengakses stream RTSP: {self.url_stream}")
 
         cap = cv2.VideoCapture(self.url_stream, cv2.CAP_FFMPEG)
         if not cap.isOpened():

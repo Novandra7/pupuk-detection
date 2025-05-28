@@ -40,12 +40,12 @@ def read(id:int):
     return Database().read_records(id)
 
 @app.get("/read_formatted_records/{id}")
-def read(id: int, date: Optional[str] = Query(None), name: Optional[str] = Query(None), shift:Optional[str] = Query(None)):
-    return Database().read_formatted_records(id, date, name, shift)
-
-@app.get("/read_curdate_records/{id}")
-def read(id:int):
-    return Database().read_curdate_records(id)
+def read(id: int, 
+         date: Optional[str] = Query(None), 
+         name: Optional[str] = Query(None), 
+         shift:Optional[str] = Query(None),
+         now: Optional[bool] = Query(False)):
+    return Database().read_formatted_records(id, date, name, shift, now)
 
 @app.get("/read_cctv_sources")
 def read():
@@ -132,7 +132,7 @@ async def stop_predict(channel: str, ):
 def write(data: list[Data]):
     for item in data:
         values = tuple(item.model_dump().values())
-        print("[DEBUG] Data yang akan disimpan:", values)
+        # print("[DEBUG] Data yang akan disimpan:", values)
         try:
             Database().write_record(values)
         except Exception as e:

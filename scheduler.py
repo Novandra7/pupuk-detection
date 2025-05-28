@@ -27,18 +27,17 @@ class Scheduler:
         for file in self.filenames:
             print(f"[{datetime.now()}] Memproses file: {file.name}")
             data = self.read_data(file)
-            for i in data:
-                print(i['timestamp'])
 
             if not data:
                 print(f"[WARNING] Data kosong di file {file.name}, lewati.")
                 continue
             
             try:
-                response = requests.post(self.url, json=data, timeout=3)  # Tambahkan timeout 3 detik
-                response.raise_for_status()  # Mendeteksi error HTTP (4xx atau 5xx)
+                response = requests.post(self.url, json=data)
+                response.raise_for_status()
 
                 print("[SUCCESS] Data berhasil dikirim:")
+                print(file)
 
                 file.unlink()
                 print(f"[INFO] File {file.name} telah dihapus setelah berhasil dikirim.")

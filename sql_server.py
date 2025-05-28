@@ -24,7 +24,7 @@ class Database:
         columns = [desc[0] for desc in self.cursor.description if desc[0] != 'id']
         return {col: None for col in columns}
 
-    def read_formatted_records(self, id_warehouse, date=None, name=None, shift=None):
+    def read_formatted_records(self, id_warehouse, date=None, name=None, shift=None, now=False):
         query = """
         SELECT
             CAST(r.timestamp AS DATE) AS record_date, 
@@ -50,6 +50,8 @@ class Database:
 
         params = [id_warehouse]
 
+        if now:
+            query += " AND CAST(r.timestamp AS DATE) = CAST(GETDATE() AS DATE)"
         if date is not None:
             query += " AND CAST(r.timestamp AS DATE) = ?"
             params.append(date)
@@ -74,31 +76,6 @@ class Database:
         """
 
         self.cursor.execute(query, tuple(params))
-        columns = [desc[0] for desc in self.cursor.description]
-        rows = self.cursor.fetchall()
-        return [dict(zip(columns, row)) for row in rows]
-
-
-    # def read_curdate_records(self, id):
-        query = """
-        SELECT
-            fr.ms_shift_id,
-            s.shift_name,
-            SUM(fr.bag) AS total_bag,
-            SUM(fr.granul) AS total_granul,
-            SUM(fr.subsidi) AS total_subsidi,
-            SUM(fr.prill) AS total_prill
-        FROM
-            tr_fertilizer_records fr
-        JOIN ms_cctv_sources cs ON fr.ms_cctv_sources_id = cs.id
-        JOIN ms_shift s ON fr.ms_shift_id = s.id
-        WHERE
-            cs.id = ? AND
-            CAST(fr.datetime AS DATE) = CAST(GETDATE() AS DATE)
-        GROUP BY
-            fr.ms_shift_id, s.shift_name
-        """
-        self.cursor.execute(query, id)
         columns = [desc[0] for desc in self.cursor.description]
         rows = self.cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]
