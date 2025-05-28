@@ -123,7 +123,7 @@ class Database:
         VALUES (?, ?, ?, ?, ?)
         """
         self.cursor.execute(query, data)
-        self.conn.commit()
+        self.con.commit()
         if self.cursor.rowcount > 0:
             return True
         else:
@@ -131,4 +131,4 @@ class Database:
 
     def close_connection(self):
         self.cursor.close()
-        self.conn.close()
+        self.con.close()
