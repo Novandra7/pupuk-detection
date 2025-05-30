@@ -72,18 +72,25 @@ def write():
 @app.get("/start_scheduler")
 def start_scheduler():
     if scheduler_instance.running:
-        return {"message": "Scheduler sudah berjalan."}
+        return {"message": "Scheduler sudah berjalan.",
+                "status": "warning"}
 
     scheduler_thread = threading.Thread(target=scheduler_instance.run_scheduler, daemon=True)
     scheduler_thread.start()
-    return {"message": "Scheduler dimulai."}   
+    return {"message": "Scheduler dimulai.",
+            "status": "success"}   
 
 @app.get("/stop_scheduler")
 def stop_scheduler():
     if not scheduler_instance.running:
         return {"message": "Scheduler belum berjalan."}
     scheduler_instance.stop_scheduler()
-    return {"message": "Scheduler dihentikan."} 
+    return {"message": "Scheduler dihentikan.",
+            "status": "success"} 
+
+@app.get("/scheduler_status")
+def scheduler_status():
+    return {"running": scheduler_instance.running}
 
 @app.get("/video_feed/{channel}")
 async def video_feed(channel: str):
