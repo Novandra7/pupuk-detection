@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
@@ -8,16 +8,27 @@ from database import Database
 from typing import Optional
 
 from scheduler import Scheduler
+from contextlib import asynccontextmanager
 import threading
 
-# RUN API
-# uvicorn {file_name}:{ variable_class_FastAPI } --port 5050
-
-app = FastAPI()
-
-CCTV_CHANNELS = {i["source_name"]: i["url_streaming"] for i in Database().read_cctv_sources()}
 predict_instances = {}
 scheduler_instance = Scheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    CCTV_CHANNELS = get_cctv_channels()
+    for channel, url in CCTV_CHANNELS.items():
+        if channel not in predict_instances:
+            try:
+                source_id = list(CCTV_CHANNELS.keys()).index(channel) + 1
+                instance = Predict(url, channel, source_id)
+                predict_instances[channel] = instance
+                print(f"[AUTO] Prediksi otomatis dimulai untuk {channel}")
+            except Exception as e:
+                print(f"[ERROR] Gagal memulai prediksi untuk {channel}: {e}")
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 class Data(BaseModel):
     ms_cctv_sources_id: int
@@ -35,6 +46,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def get_cctv_channels():
+    return {i["source_name"]: i["url_streaming"] for i in Database().read_cctv_sources()}
+
 @app.get("/read_records/{id}")
 def read(id:int):
     return Database().read_records(id)
@@ -43,7 +57,7 @@ def read(id:int):
 def read(id: int, 
          date: Optional[str] = Query(None), 
          name: Optional[str] = Query(None), 
-         shift:Optional[str] = Query(None),
+         shift: Optional[str] = Query(None),
          now: Optional[bool] = Query(False)):
     return Database().read_formatted_records(id, date, name, shift, now)
 
@@ -103,9 +117,17 @@ async def video_feed(channel: str):
         media_type="multipart/x-mixed-replace; boundary=frame",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
     )
+
+@app.get("/thumbnail/{channel}")
+async def get_thumbnail(channel: str):
+    instance = predict_instances.get(channel)
+    if not instance or instance.latest_frame is None:
+        raise HTTPException(status_code=404, detail="Thumbnail belum tersedia")
+    return Response(content=instance.latest_frame, media_type="image/jpeg")
     
 @app.get("/start_predict/{channel}")
 def start_predict(channel: str, background_tasks: BackgroundTasks):
+    CCTV_CHANNELS = get_cctv_channels()
     if channel not in CCTV_CHANNELS:
         raise HTTPException(status_code=404, detail="Channel not found")
 
@@ -139,7 +161,6 @@ async def stop_predict(channel: str, ):
 def write(data: list[Data]):
     for item in data:
         values = tuple(item.model_dump().values())
-        # print("[DEBUG] Data yang akan disimpan:", values)
         try:
             Database().write_record(values)
         except Exception as e:

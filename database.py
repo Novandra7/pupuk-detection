@@ -82,7 +82,7 @@ class Database:
         return [dict(zip(columns, row)) for row in rows]
 
     def read_cctv_sources(self):
-        self.cursor.execute("SELECT * FROM ms_cctv_sources")
+        self.cursor.execute("SELECT * FROM ms_cctv_sources WHERE is_active = 1")
         columns = [desc[0] for desc in self.cursor.description]
         rows = self.cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]
