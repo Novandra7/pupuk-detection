@@ -11,6 +11,7 @@ from scheduler import Scheduler
 from contextlib import asynccontextmanager
 import threading
 
+
 predict_instances = {}
 scheduler_instance = Scheduler()
 
@@ -20,10 +21,14 @@ async def lifespan(app: FastAPI):
     for channel, url in CCTV_CHANNELS.items():
         if channel not in predict_instances:
             try:
-                source_id = list(CCTV_CHANNELS.keys()).index(channel) + 1
-                instance = Predict(url, channel, source_id)
-                predict_instances[channel] = instance
-                print(f"[AUTO] Prediksi otomatis dimulai untuk {channel}")
+                def run_prediction():
+                    source_id = CCTV_CHANNELS[channel][1]
+                    instance = Predict(url, channel, source_id)
+                    predict_instances[channel] = instance
+                    print(f"[AUTO] Prediksi otomatis dimulai untuk {channel}")
+
+                thread = threading.Thread(target=run_prediction, daemon=True)
+                thread.start()
             except Exception as e:
                 print(f"[ERROR] Gagal memulai prediksi untuk {channel}: {e}")
     yield
@@ -47,7 +52,7 @@ app.add_middleware(
 )
 
 def get_cctv_channels():
-    return {i["source_name"]: i["url_streaming"] for i in Database().read_cctv_sources()}
+    return {i["source_name"]: (i["url_streaming"], i['id']) for i in Database().read_cctv_sources()}
 
 @app.get("/read_records/{id}")
 def read(id:int):
@@ -135,8 +140,8 @@ def start_predict(channel: str, background_tasks: BackgroundTasks):
         return {"message": f"Prediksi untuk channel '{channel}' sudah berjalan."}
 
     def run_prediction():
-        source_id = list(CCTV_CHANNELS.keys()).index(channel) + 1
-        instance = Predict(CCTV_CHANNELS[channel], channel, source_id)
+        source_id = CCTV_CHANNELS[channel][1]
+        instance = Predict(CCTV_CHANNELS[channel][0], channel, source_id)
         predict_instances[channel] = instance
         print(f"[INFO] Background prediksi dimulai untuk {channel}")
 
@@ -165,5 +170,4 @@ def write(data: list[Data]):
             Database().write_record(values)
         except Exception as e:
             print("[ERROR] Gagal menyimpan ke DB:", e)
-            raise HTTPException(status_code=500, detail=str(e))
     return {"message": f"{len(data)} records saved successfully."}

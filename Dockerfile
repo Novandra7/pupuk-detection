@@ -22,6 +22,6 @@ RUN apt-get update && \
     libgl1 && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+RUN python -m pip install --upgrade pip && pip install --no-cache-dir --default-timeout=100 --upgrade -r requirements.txt
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5050"]

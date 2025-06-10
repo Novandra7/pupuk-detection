@@ -2,61 +2,70 @@ import json
 import time
 import schedule
 import requests
+import logging
 from pathlib import Path
 from datetime import datetime
 
+# Konfigurasi logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="[{asctime}] {levelname}: {message}",
+    style="{",
+    handlers=[
+        logging.FileHandler("scheduler.log"),  # log ke file
+        logging.StreamHandler()                # log ke console
+    ]
+)
+
 class Scheduler:
     def __init__(self):
-        self.url = "http://12.7.25.82:44080/write"
-        self.filenames = Path('.').glob('*.json') 
+        self.url = "http://12.7.25.82:5050/write"
         self.running = False
 
-    def read_data(self,filename):
+    def read_data(self, filename):
         try:
             with open(filename, "r") as file:
                 data = json.load(file)
             return data
         except FileNotFoundError:
-            print("[ERROR] File JSON tidak ditemukan!")
-            return {}  # Mengembalikan dictionary kosong jika file tidak ditemukan
+            logging.error("File JSON tidak ditemukan!")
+            return {}
         except json.JSONDecodeError:
-            print("[ERROR] File JSON rusak atau tidak valid!")
-            return {}  # Mengembalikan dictionary kosong jika JSON tidak valid
+            logging.error("File JSON rusak atau tidak valid!")
+            return {}
 
     def store(self):
-        for file in self.filenames:
-            print(f"[{datetime.now()}] Memproses file: {file.name}")
+        for file in Path('.').glob('*.json'):
+            logging.info(f"Memproses file: {file.name}")
             data = self.read_data(file)
 
             if not data:
-                print(f"[WARNING] Data kosong di file {file.name}, lewati.")
+                logging.warning(f"Data kosong di file {file.name}, lewati.")
                 continue
             
             try:
                 response = requests.post(self.url, json=data)
                 response.raise_for_status()
 
-                print("[SUCCESS] Data berhasil dikirim:")
-                print(file)
-
+                logging.info(f"Data berhasil dikirim dari file: {file.name}")
                 file.unlink()
-                print(f"[INFO] File {file.name} telah dihapus setelah berhasil dikirim.")
-
+                logging.info(f"File {file.name} telah dihapus setelah berhasil dikirim.")
             except requests.exceptions.RequestException as e:
-                print(f"[ERROR] Gagal mengirim request: {e}")
+                logging.error(f"Gagal mengirim request: {e}")
 
     def run_scheduler(self):
-        schedule.every(10).minutes.do(self.store)
-        print("[INFO] scheduler dimulai")
+        job = schedule.every(10).minutes.do(self.store)
+        logging.info("Scheduler dimulai")
+        logging.info(f"Job terjadwal: {job}")
         self.running = True
         while self.running:
             try:
                 schedule.run_pending()
                 time.sleep(1)
             except KeyboardInterrupt:
-                print("\n[INFO] Program dihentikan oleh pengguna.")
+                logging.info("Program dihentikan oleh pengguna.")
                 break
-            
+
     def stop_scheduler(self):
         self.running = False
-        print("[INFO] Scheduler dihentikan secara programatik.")
+        logging.info("Scheduler dihentikan secara programatik.")

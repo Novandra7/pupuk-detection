@@ -3,22 +3,21 @@ import cv2
 import time
 import json
 import logging
+import pytz
 import numpy as np
 from threading import Thread
 from ultralytics import YOLO
 from datetime import datetime
 from sort import Sort
-from database import Database
+from threading import Thread
+from sql_server import Database
+from datetime import datetime
 
 logging.basicConfig(
     filename=f"{time.strftime('%Y-%m-%d')}.txt",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
-
-from threading import Thread
-from sql_server import Database
-from datetime import datetime
 
 class Predict:
     def __init__(self, url_stream: str, cctv_name: str, id_cctv: int):
@@ -27,22 +26,29 @@ class Predict:
         self.id_cctv = id_cctv
 
         self.cap = self.init_capture()
+        self.middle_line = None
+        if self.cap:
+            self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2
+        else:
+            logging.warning(f"Tidak dapat menentukan middle_line karena stream {self.cctv_name} gagal dibuka.")
+
         self.model = YOLO("./runs/detect/train15/weights/best.pt")
         self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
 
-        self.label = Database().read_bag()
-        self.shift = Database().read_shift()
-        self.temp_data_format = dict.fromkeys(Database().read_temp_data_format())
+        db = Database()
+        self.label = db.read_bag()
+        self.shift = db.read_shift()
+        self.temp_data_format = dict.fromkeys(db.read_temp_data_format())
 
         self.counted_ids = set()
         self.total_qty = {}
-        self.middle_line = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2
 
         self.latest_frame = None
         self.is_running = True
 
         self.pred_thread = Thread(target=self._predict_loop, daemon=True)
         self.pred_thread.start()
+
 
     def init_capture(self):
         cap = cv2.VideoCapture(self.url_stream, cv2.CAP_FFMPEG)
@@ -58,9 +64,8 @@ class Predict:
         if self.cap:
             self.cap.release()
         time.sleep(1)
-        while True:
+        while self.is_running:
             try:
-                print("reconnect")
                 self.cap = self.init_capture()
                 if self.cap.isOpened():
                     logging.info(f"Reconnect berhasil untuk {self.cctv_name}")
@@ -89,6 +94,10 @@ class Predict:
 
     def draw_text(self, frame, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.7, color=(0, 165, 255), thickness=2):
         return cv2.putText(frame, text, position, font, font_scale, color, thickness)
+    
+    def get_current_time(self):
+        tz = pytz.timezone('Asia/Makassar')
+        return datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')
 
     def detect_current_shift(self, current_time_str):
         current_time = datetime.strptime(current_time_str, "%H:%M:%S").time()
@@ -108,11 +117,18 @@ class Predict:
             if self.latest_frame:
                 yield (b"--frame\r\n"
                        b"Content-Type: image/jpeg\r\n\r\n" + self.latest_frame + b"\r\n")
-            time.sleep(0.03)
 
     def _predict_loop(self):
         logging.info(f"Memulai prediksi untuk {self.cctv_name}")
+
+        # === Configurable ===
+        target_fps = 5
+        frame_interval = 1.0 / target_fps
+        # ====================
+
         while self.is_running:
+            start_time_loop = time.time()
+
             try:
                 success, frame = self.cap.read()
                 if not success or frame is None:
@@ -149,7 +165,7 @@ class Predict:
                     center_x = (x1 + x2) / 2
 
                     if track_id not in self.counted_ids and center_x < self.middle_line:
-                        current_shift_time = time.strftime('%H:%M:%S')
+                        current_shift_time = self.get_current_time().split(" ")[1]
                         shift_id = self.detect_current_shift(current_shift_time)
 
                         if detected_class_id not in self.total_qty:
@@ -157,7 +173,7 @@ class Predict:
                         else:
                             self.total_qty[detected_class_id] += 1
 
-                        data = [self.id_cctv, shift_id, detected_class_id, 1, time.strftime('%Y-%m-%d %H:%M:%S')]
+                        data = [self.id_cctv, shift_id, detected_class_id, 1, self.get_current_time()]
                         self.temp_data_format.update(dict(zip(self.temp_data_format.keys(), data)))
                         self.write_data(data, self.cctv_name)
                         self.counted_ids.add(track_id)
@@ -173,15 +189,9 @@ class Predict:
                 inference_time = f"Inference Time: {round((time.time() - start_time) * 1000, 2)} ms"
                 self.draw_text(frame, inference_time, (90, 280))
 
-                # cv2.imshow("cctv", frame)
-      
-                # if cv2.waitKey(1) & 0xFF == 27:
-                #     break
-
-                # Validasi frame sebelum encode
-                if frame is not None and frame.size > 0:
-                    _, buffer = cv2.imencode(".jpg", frame)
-                    self.latest_frame = buffer.tobytes()
+                # Encode frame terakhir untuk streaming
+                _, buffer = cv2.imencode(".jpg", frame)
+                self.latest_frame = buffer.tobytes()
 
             except GeneratorExit:
                 logging.info(f"Stream ditutup oleh client untuk {self.cctv_name}")
@@ -190,10 +200,15 @@ class Predict:
                 self.reconnect()
                 time.sleep(1)
 
+            # === Throttle FPS ===
+            elapsed_time_loop = time.time() - start_time_loop
+            sleep_time = frame_interval - elapsed_time_loop
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+
     def stop_predict(self):
         logging.info(f"Prediksi dihentikan untuk {self.cctv_name}")
         self.is_running = False
         self.latest_frame = None
         self.cap.release()
-
-# Predict("pupuk.mp4", "CCTV-2", 2)._predict_loop()
