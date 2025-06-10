@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 from class_predict import Predict
-from database import Database
+from sql_server import Database
 from typing import Optional
 
 from scheduler import Scheduler
@@ -40,7 +40,7 @@ class Data(BaseModel):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000"],
+    allow_origins=["http://12.7.25.82:44080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

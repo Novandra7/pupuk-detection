@@ -3,7 +3,7 @@ import random
 
 # Parameter awal
 start_time = datetime(2025, 5, 21, 8, 0, 0)
-num_days = 10
+num_days = 1
 entries_per_day = 10
 cctv_sources = [1, 2, 3]
 shift_ids = [1, 2, 3]
@@ -25,7 +25,7 @@ for day in range(num_days):
             if random.random() < 0.8:
                 ms_bag_id = bag_ids[pupuk]
                 sql = (
-                    f"INSERT INTO your_table_name (ms_cctv_sources_id, ms_shift_id, ms_bag_id, quantity, timestamp) "
+                    f"INSERT INTO tr_fertilizer_records (ms_cctv_sources_id, ms_shift_id, ms_bag_id, quantity, timestamp) "
                     f"VALUES ({ms_cctv_sources_id}, {ms_shift_id}, {ms_bag_id}, 1, '{timestamp.strftime('%Y-%m-%d %H:%M:%S')}');"
                 )
                 lines.append(sql)

@@ -7,7 +7,7 @@ from datetime import datetime
 
 class Scheduler:
     def __init__(self):
-        self.url = "http://127.0.0.1:5050/write"
+        self.url = "http://12.7.25.82:44080/write"
         self.filenames = Path('.').glob('*.json') 
         self.running = False
 

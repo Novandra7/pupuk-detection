@@ -16,6 +16,9 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+from threading import Thread
+from sql_server import Database
+from datetime import datetime
 
 class Predict:
     def __init__(self, url_stream: str, cctv_name: str, id_cctv: int):
