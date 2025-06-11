@@ -23,4 +23,11 @@ from roboflow import Roboflow
 # project = rf.workspace("detection-cqsio").project("pupuk-wouix")
 # version = project.version(4)
 # dataset = version.download("yolov11")
+
+# V5
+rf = Roboflow(api_key="hy1b46uSZJ89Lp52tIKT")
+project = rf.workspace("detection-cqsio").project("pupuk-wouix")
+version = project.version(5)
+dataset = version.download("yolov11")
+                
                 

@@ -10,7 +10,7 @@ from ultralytics import YOLO
 from datetime import datetime
 from sort import Sort
 from threading import Thread
-from sql_server import Database
+from database import Database
 from datetime import datetime
 
 logging.basicConfig(
@@ -32,7 +32,7 @@ class Predict:
         else:
             logging.warning(f"Tidak dapat menentukan middle_line karena stream {self.cctv_name} gagal dibuka.")
 
-        self.model = YOLO("./runs/detect/train15/weights/best.pt")
+        self.model = YOLO("./runs/detect/train16/weights/best.pt")
         self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
 
         db = Database()
@@ -92,7 +92,7 @@ class Predict:
         with open(filename, "w") as file:
             json.dump(existing_data, file, indent=4)
 
-    def draw_text(self, frame, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.7, color=(0, 165, 255), thickness=2):
+    def draw_text(self, frame, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.3, color=(0, 165, 255), thickness=1):
         return cv2.putText(frame, text, position, font, font_scale, color, thickness)
     
     def get_current_time(self):
@@ -122,7 +122,7 @@ class Predict:
         logging.info(f"Memulai prediksi untuk {self.cctv_name}")
 
         # === Configurable ===
-        target_fps = 5
+        target_fps = 10
         frame_interval = 1.0 / target_fps
         # ====================
 
@@ -163,6 +163,7 @@ class Predict:
                     self.draw_text(frame, f"Type: {detected_class_bag_type}", (int(x1), int(y1) - 10), font_scale=0.5)
 
                     center_x = (x1 + x2) / 2
+                    cv2.circle(frame, (int(center_x), int((y1 + y2) / 2)), 4, (0, 255, 255), -1)
 
                     if track_id not in self.counted_ids and center_x < self.middle_line:
                         current_shift_time = self.get_current_time().split(" ")[1]
@@ -180,18 +181,23 @@ class Predict:
 
                         cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 165, 255), 3)
 
-                y_pos = 100
+                y_pos = 50
                 for class_id, total in self.total_qty.items():
                     class_name = next((v["bag_type"] for v in self.label if v["id"] == class_id), f"ID {class_id}")
-                    self.draw_text(frame, f"{class_name} Count: {total}", (90, y_pos))
+                    self.draw_text(frame, f"{class_name} Count: {total}", (15, y_pos))
                     y_pos += 30
 
                 inference_time = f"Inference Time: {round((time.time() - start_time) * 1000, 2)} ms"
-                self.draw_text(frame, inference_time, (90, 280))
+                self.draw_text(frame, inference_time, (15, 340))
 
                 # Encode frame terakhir untuk streaming
                 _, buffer = cv2.imencode(".jpg", frame)
                 self.latest_frame = buffer.tobytes()
+
+                # cv2.imshow(self.cctv_name, frame)
+                # print(frame.shape)
+                # if cv2.waitKey(1) & 0xFF == ord('q'):
+                #     break
 
             except GeneratorExit:
                 logging.info(f"Stream ditutup oleh client untuk {self.cctv_name}")
@@ -212,3 +218,5 @@ class Predict:
         self.is_running = False
         self.latest_frame = None
         self.cap.release()
+
+# Predict(url_stream="conveyor.mp4",cctv_name="CCTV 1",id_cctv=1)._predict_loop()

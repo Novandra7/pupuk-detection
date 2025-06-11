@@ -88,7 +88,7 @@ class Database:
         return [dict(zip(columns, row)) for row in rows]
    
     def read_cctv_sources_by_warehouse_id(self,id):
-        self.cursor.execute("SELECT * FROM ms_cctv_sources WHERE ms_warehouse_id = %s", (id,))
+        self.cursor.execute("SELECT * FROM ms_cctv_sources WHERE ms_warehouse_id = %s AND is_active = 1", (id,))
         columns = [desc[0] for desc in self.cursor.description]
         rows = self.cursor.fetchall()
         return [dict(zip(columns, row)) for row in rows]
