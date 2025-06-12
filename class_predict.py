@@ -10,7 +10,7 @@ from ultralytics import YOLO
 from datetime import datetime
 from sort import Sort
 from threading import Thread
-from database import Database
+from sql_server import Database
 from datetime import datetime
 
 logging.basicConfig(
@@ -32,7 +32,7 @@ class Predict:
         else:
             logging.warning(f"Tidak dapat menentukan middle_line karena stream {self.cctv_name} gagal dibuka.")
 
-        self.model = YOLO("./runs/detect/train16/weights/best.pt")
+        self.model = YOLO("./runs/detect/train17/weights/best.pt")
         self.tracker = Sort(max_age=120, min_hits=10, iou_threshold=0.5)
 
         db = Database()
@@ -154,7 +154,7 @@ class Predict:
                 for track, class_index in zip(tracks, detections[:, -1]):
                     x1, y1, x2, y2, track_id = track
                     track_id = int(track_id)
-                    class_index = int(class_index) + 1
+                    class_index = int(class_index)
                     detected_class = self.label[class_index]
                     detected_class_id = detected_class['id']
                     detected_class_bag_type = detected_class['bag_type']
@@ -181,6 +181,21 @@ class Predict:
 
                         cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 165, 255), 3)
 
+                        # Ambil class_name (bag_type)
+                        class_name = detected_class_bag_type.replace(" ", "_")  # biar aman untuk nama folder
+
+                        # Buat folder jika belum ada
+                        folder_path = os.path.join("screenshots", class_name)
+                        os.makedirs(folder_path, exist_ok=True)
+
+                        # Nama file unik pakai timestamp + track_id
+                        timestamp = self.get_current_time()
+                        filename = f"{timestamp}_track_{track_id}.jpg"
+                        filepath = os.path.join(folder_path, filename)
+
+                        # Simpan frame sebagai image
+                        cv2.imwrite(filepath, frame)
+
                 y_pos = 50
                 for class_id, total in self.total_qty.items():
                     class_name = next((v["bag_type"] for v in self.label if v["id"] == class_id), f"ID {class_id}")
@@ -193,11 +208,6 @@ class Predict:
                 # Encode frame terakhir untuk streaming
                 _, buffer = cv2.imencode(".jpg", frame)
                 self.latest_frame = buffer.tobytes()
-
-                # cv2.imshow(self.cctv_name, frame)
-                # print(frame.shape)
-                # if cv2.waitKey(1) & 0xFF == ord('q'):
-                #     break
 
             except GeneratorExit:
                 logging.info(f"Stream ditutup oleh client untuk {self.cctv_name}")
@@ -218,5 +228,3 @@ class Predict:
         self.is_running = False
         self.latest_frame = None
         self.cap.release()
-
-# Predict(url_stream="conveyor.mp4",cctv_name="CCTV 1",id_cctv=1)._predict_loop()

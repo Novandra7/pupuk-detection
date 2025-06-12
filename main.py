@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 from class_predict import Predict
-from database import Database
+from sql_server import Database
 from typing import Optional
 
 from scheduler import Scheduler
@@ -18,17 +18,12 @@ scheduler_instance = Scheduler()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     CCTV_CHANNELS = get_cctv_channels()
-    for channel, url in CCTV_CHANNELS.items():
+    for channel, (url, source_id) in CCTV_CHANNELS.items():
         if channel not in predict_instances:
             try:
-                def run_prediction():
-                    source_id = CCTV_CHANNELS[channel][1]
-                    instance = Predict(url, channel, source_id)
-                    predict_instances[channel] = instance
-                    print(f"[AUTO] Prediksi otomatis dimulai untuk {channel}")
-
-                thread = threading.Thread(target=run_prediction, daemon=True)
-                thread.start()
+                instance = Predict(url, channel, source_id)
+                predict_instances[channel] = instance
+                print(f"[AUTO] Prediksi otomatis dimulai untuk {channel}")
             except Exception as e:
                 print(f"[ERROR] Gagal memulai prediksi untuk {channel}: {e}")
     yield
@@ -45,7 +40,7 @@ class Data(BaseModel):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000"],
+    allow_origins=["http://12.7.25.82:44080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
