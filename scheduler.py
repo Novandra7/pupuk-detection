@@ -20,7 +20,7 @@ logging.basicConfig(
 class Scheduler:
     def __init__(self):
         self.url = "http://12.7.25.82:5050/write"
-        self.running = False
+        self.running = True
 
     def read_data(self, filename):
         try:
@@ -57,7 +57,6 @@ class Scheduler:
         job = schedule.every(10).minutes.do(self.store)
         logging.info("Scheduler dimulai")
         logging.info(f"Job terjadwal: {job}")
-        self.running = True
         while self.running:
             try:
                 schedule.run_pending()

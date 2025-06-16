@@ -1,2 +1,7 @@
 .venv/
 datasets/
+screenshots/
+__pycache__/
+*.json
+*.log
+*.txt

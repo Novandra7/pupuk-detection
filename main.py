@@ -26,6 +26,12 @@ async def lifespan(app: FastAPI):
                 print(f"[AUTO] Prediksi otomatis dimulai untuk {channel}")
             except Exception as e:
                 print(f"[ERROR] Gagal memulai prediksi untuk {channel}: {e}")
+
+    if not scheduler_instance.running:
+        scheduler_thread = threading.Thread(target=scheduler_instance.run_scheduler, daemon=True)
+        scheduler_thread.start()
+        print("[AUTO] Scheduler dimulai secara otomatis")
+
     yield
 
 app = FastAPI(lifespan=lifespan)
